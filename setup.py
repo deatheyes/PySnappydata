@@ -22,7 +22,7 @@ setup(
     url="https://github.com/deatheye/PySnappydata/",
     author="Yu Yan",
     author_email="coderyy@163.com",
-    packages=['pyhive', 'TCLIService'],
+    packages=['pysnappydata', 'TCLIService'],
     classifiers=[
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
