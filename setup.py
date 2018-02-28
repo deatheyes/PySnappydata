@@ -45,6 +45,6 @@ setup(
     zip_safe=False,
      entry_points = {  
          'sqlalchemy.dialects': 
-         ['snappydata = snappydata.sqlalchemy_snappydata:SnappyDataDialect']
+         ['snappydata = pysnappydata.sqlalchemy_snappydata:SnappyDataDialect']
      },
 )

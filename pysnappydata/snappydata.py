@@ -16,6 +16,7 @@ from pysnappydata import common
 
 import thrift.protocol.TCompactProtocol
 import thrift.transport.TSocket
+from pysnappydata.exc import *
 
 # PEP 249 module globals
 apilevel = '2.0'
@@ -115,16 +116,13 @@ class Connection(object):
         try:
             self.reset_state()
             self.cancel_current_statement()
-        except ttypes.SnappyException, e:
+        except ttypes.SnappyException as e:
             if isinstance(e.exceptionData, ttypes.SnappyExceptionData) and e.exceptionData.errorCode == 2000:
                 pass
-        else:
-            raise
 
     def execute(self, sql, attr=None, outputparams=None):
+        print 'sql:', sql
         return self._client.execute(self._conn_properties.connId, sql, outputparams, attr, self._conn_properties.token)
-        #return self._client.prepareAndExecute(
-        #    self._conn_properties.connId, sql, params, outputparams, attr, self._conn_properties.token)
 
     def get_next_result_set(self, cursorid):
         return self._client.getNextResultSet(cursorid, None, self._conn_properties.token)
@@ -137,6 +135,7 @@ class Cursor(common.DBAPICursor):
         super(Cursor, self).__init__()
         self.arraysize = arraysize
         self._connection = connection
+        self._rowcount = 0;
 
     def _reset_state(self):
         """Reset state about the previous query in preparation for running another query"""
@@ -201,15 +200,97 @@ class Cursor(common.DBAPICursor):
         _logger.info('%s', sql)
         self._operationHandle = self._connection.execute(sql)
         if self._operationHandle is not None and self._operationHandle.resultSet is not None:
-            self._data += self._operationHandle.resultSet.rows
+            self._data += self._build_data()
+        self._update_rowcount()
+
+    def _build_data(self):
+        data = []
+        for row in self._operationHandle.resultSet.rows:
+            item = []
+            for column, descriptor in zip(row.values, self._operationHandle.resultSet.metadata):
+                item.append(self._build_item(column, descriptor))
+            data.append(item)
+        return data
+
+    def _build_item(self, column, descriptor):
+        if descriptor.type == ttypes.SnappyType.BOOLEAN:
+            return column.bool_val
+        elif descriptor.type == ttypes.SnappyType.TINYINT:
+            return column.byte_val
+        elif descriptor.type == ttypes.SnappyType.SMALLINT:
+            return column.i16_val
+        elif descriptor.type == ttypes.SnappyType.INTEGER:
+            return column.i32_val
+        elif descriptor.type == ttypes.SnappyType.BIGINT:
+            return column.i64_val
+        elif descriptor.type == ttypes.SnappyType.FLOAT or descriptor.type == ttypes.SnappyType.DOUBLE:
+            return column.double_val
+        elif descriptor.type == ttypes.SnappyType.CHAR or descriptor.type == ttypes.SnappyType.VARCHAR or descriptor.type == ttypes.SnappyType.LONGVARCHAR:
+            return column.string_val
+        elif descriptor.type == ttypes.SnappyType.DECIMAL:
+            return column.decimal_val
+        elif descriptor.type == ttypes.SnappyType.DATE:
+            return column.date_val
+        elif descriptor.type == ttypes.SnappyType.TIME:
+            return column.time_val
+        elif descriptor.type == ttypes.SnappyType.TIMESTAMP:
+            return column.timestamp_val
+        elif descriptor.type == ttypes.SnappyType.BINARY or descriptor.type == ttypes.SnappyType.VARBINARY or descriptor.type == ttypes.SnappyType.LONGVARBINARY:
+            return column.binary_val
+        elif descriptor.type == ttypes.SnappyType.BLOB:
+            return column.blob_val
+        elif descriptor.type == ttypes.SnappyType.CLOB or descriptor.type == ttypes.SnappyType.JSON or descriptor.type == ttypes.SnappyType.SQLXML:
+            return column.clob_val
+        elif descriptor.type == ttypes.SnappyType.ARRAY:
+            return self._build_array(column.array_val, descriptor.elementTypes[0])
+        elif descriptor.type == ttypes.SnappyType.MAP:
+            return self._build_map(column.map_val, descriptor.elementTypes[0], descriptor.elementTypes[1])
+        elif descriptor.type == ttypes.SnappyType.STRUCT:
+            return self._build_struct(column.struct_val, descriptor.elementTypes)
+        elif descriptor.type == ttypes.SnappyType.NULLTYPE:
+            return column.null_val
+        elif descriptor.type == ttypes.SnappyType.JAVA_OBJECT:
+            return column.java_val
+        else:
+            return column
+
+
+    def _build_array(self, elems, descriptor):
+        ret = []
+        for elem in elems:
+            ret.append(self._build_item(elem, descriptor))
+        return ret
+
+    def _build_map(self, map, descriptor1, descriptor2):
+        ret = {}
+        for first, second in map.items():
+            k = self._build_item(first, descriptor1)
+            v = self._build_item(second, descriptor2)
+            ret[k] = v
+        return ret
+
+    def _build_struct(self, fields, descriptors):
+        ret = []
+        for field, descriptor in zip(fields, descriptors):
+            ret.append(self._build_item(field, descriptor))
+        return ret
 
     def cancel(self):
         self._connection.cancel_current_statement()
 
-    def rowcount(self):
-        if self._operationHandle is None or self._operationHandle.resultSet is None:
+    def _update_rowcount(self):
+        if self._operationHandle is None:
+            return
+        if self._operationHandle.updateCount != 0:
+            self._rowcount = self._operationHandle.updateCount
+        elif self._operationHandle.resultSet is not None:
+            self._rowcount = len(self._operationHandle.resultSet.rows)
+        else:
             return 0
-        return self._operationHandle.resultSet.batchUpdateCounts
+
+    @property
+    def rowcount(self):
+        return self._rowcount
 
     def nextset(self):
         if self._operationHandle.resultSet.RowSet.cursorId > 0:
