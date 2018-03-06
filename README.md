@@ -14,7 +14,7 @@ cursor.execute('SELECT * FROM test')
 print cursor.fetchall()
 ```
 
-### SQLAlchemy
+## SQLAlchemy
 
 First install SQLAlchemy, then install this package to register it with SQLAlchemy:
 
