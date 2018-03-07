@@ -12,6 +12,7 @@ import thread
 
 from TCLIService import SnappyDataService
 from TCLIService import ttypes
+from TCLIService import LocatorService
 from pysnappydata import common
 
 import thrift.protocol.TCompactProtocol
@@ -55,10 +56,26 @@ def connect(*args, **kwargs):
 class Connection(object):
     """Wraps a Thrift session"""
 
-    def __init__(self, host, port=1528, username=None, password=None):
-        self._hostname = socket.gethostname()
+    def __init__(self, host, port=1528, username=None, password=None, locator=False):
+        if locator:
+            tsocket = thrift.transport.TSocket.TSocket(host, port)
+            iprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
+            oprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
+            self._locator = LocatorService.Client(iprot, oprot)
+            tsocket.open()
+            prefer_server = \
+                self._locator.getPreferredServer(
+                    serverTypes=set([LocatorService.ServerType.THRIFT_SNAPPY_CP]),
+                    serverGroups=None,
+                    failedServers=None)
+            self._hostname = prefer_server.hostName
+            self._port = prefer_server.port
+        else:
+            self._hostname = host
+            self._port = port
+
         self._clientid = self._hostname + str(thread.get_ident()) + str(time.time())
-        tsocket = thrift.transport.TSocket.TSocket(host, port)
+        tsocket = thrift.transport.TSocket.TSocket(self._hostname, self._port)
         iprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
         oprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
         tsocket.open()
@@ -121,7 +138,6 @@ class Connection(object):
                 pass
 
     def execute(self, sql, attr=None, outputparams=None):
-        print 'sql:', sql
         return self._client.execute(self._conn_properties.connId, sql, outputparams, attr, self._conn_properties.token)
 
     def get_next_result_set(self, cursorid):

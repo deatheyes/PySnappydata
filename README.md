@@ -18,13 +18,16 @@ print cursor.fetchall()
 
 First install SQLAlchemy, then install this package to register it with SQLAlchemy:
 
+### Work with server connection
+
 ``` python
 from sqlalchemy import *
 from sqlalchemy.engine import create_engine
 from sqlalchemy.schema import *
+
 engine = create_engine('snappydata://localhost')
 metadata = MetaData()
-user = Table('user', metadata,
+user = Table('user_c', metadata,
         Column('id', INTEGER, primary_key=True),
         Column('name', VARCHAR(20)),
     )
@@ -41,4 +44,21 @@ r = conn.execute(s)
 print r.rowcount
 print r.fetchall()
 ```
+### Work with locator connection
 
+``` python
+from sqlalchemy import *
+from sqlalchemy.engine import create_engine
+from sqlalchemy.schema import *
+
+engine = create_engine('snappydata://localhost:1527', connect_args = {'locator':True})
+    metadata = MetaData()
+    user = Table('user_c', metadata,
+             Column('id', INTEGER, primary_key=True),
+             Column('name', VARCHAR(20)),
+             )
+    metadata.create_all(engine)
+    conn = engine.connect()
+    user.drop(engine);
+    conn.close()
+```
