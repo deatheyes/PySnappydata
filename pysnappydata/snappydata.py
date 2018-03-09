@@ -254,9 +254,9 @@ class Cursor(common.DBAPICursor):
         elif descriptor.type == ttypes.SnappyType.BINARY or descriptor.type == ttypes.SnappyType.VARBINARY or descriptor.type == ttypes.SnappyType.LONGVARBINARY:
             return column.binary_val
         elif descriptor.type == ttypes.SnappyType.BLOB:
-            return column.blob_val
+            return column.blob_val.chunk
         elif descriptor.type == ttypes.SnappyType.CLOB or descriptor.type == ttypes.SnappyType.JSON or descriptor.type == ttypes.SnappyType.SQLXML:
-            return column.clob_val
+            return column.clob_val.chunk
         elif descriptor.type == ttypes.SnappyType.ARRAY:
             return self._build_array(column.array_val, descriptor.elementTypes[0])
         elif descriptor.type == ttypes.SnappyType.MAP:
