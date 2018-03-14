@@ -225,8 +225,7 @@ class Cursor(common.DBAPICursor):
             item = []
             for column, descriptor in zip(row.values, self._operationHandle.resultSet.metadata):
                 sub_item = self._build_item(column, descriptor)
-                if sub_item is not None:
-                    item.append(self._build_item(column, descriptor))
+                item.append(self._build_item(column, descriptor))
             data.append(item)
         return data
 

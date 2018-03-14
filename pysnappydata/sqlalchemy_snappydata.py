@@ -18,6 +18,28 @@ from sqlalchemy import types
 from sqlalchemy import exc
 from TCLIService import ttypes
 
+import logging
+
+_logger = logging.getLogger(__name__)
+
+_type_map = {
+    'boolean': types.Boolean,
+    'smallint': types.SmallInteger,
+    'int': types.Integer,
+    'bigint': types.BigInteger,
+    'float': types.Float,
+    'double': types.Float,
+    'string': types.String,
+    'date': types.Date,
+    'timestamp': types.TIMESTAMP,
+    'binary': types.String,
+    'array': types.String,
+    'map': types.String,
+    'struct': types.String,
+    'uniontype': types.String,
+    'decimal': types.DECIMAL,
+}
+
 class SnappyDataDialect(default.DefaultDialect):
     name = b'snappydata'
     driver = b'thrift'
@@ -40,23 +62,31 @@ class SnappyDataDialect(default.DefaultDialect):
             full_table = schema + '.' + table_name
 
         try:
-            cursor = connection.execute('DESCRIBE {}'.format(full_table)).cursor
-            return cursor.fetchall(), cursor.description
+            return connection.execute('DESCRIBE {}'.format(full_table))
         except ttypes.SnappyException as e:
             if isinstance(e.exceptionData, ttypes.SnappyExceptionData) and e.exceptionData.errorCode == 20000:
                 raise exc.NoSuchTableError(full_table)
+            else:
+                raise e
 
-    def get_columns(self, connection, table_name, schema=None):
-        rows, descriptor = self._get_table_columns(connection, table_name, schema)
+    def get_columns(self, connection, table_name, schema=None, **kw):
+        # TODO: parse auto increament and sequence
+        rows = self._get_table_columns(connection, table_name, schema)
         result = []
-        for row in rows:
-            item = []
-            for col, desc in zip (row, descriptor):
-                if desc[0] == 'col_name':
-                    item['name'] = col.chunk
-                elif desc[0] == 'data_type':
-                    item['data_type'] = col.chunk
-            result.append(item)
+        for (col_name, col_type, _comment) in rows:
+            try:
+                coltype = _type_map[col_type]
+            except KeyError:
+                _logger.warning("Did not recognize type '%s' of column '%s'", col_type, col_name)
+                coltype = types.NullType
+            result.append({
+                'name': col_name,
+                'type': coltype,
+                'nullable': True,
+                'default': None,
+                'sequence': {}
+            })
+        _logger.info("get columns info: %s", result)
         return result
 
     def has_table(self, connection, table_name, schema=None):
@@ -66,9 +96,24 @@ class SnappyDataDialect(default.DefaultDialect):
         except exc.NoSuchTableError:
             return False
 
+    def get_view_names(self, connection, schema=None, **kw):
+        return self.get_table_names(connection, schema, **kw)
+
     def get_table_names(self, connection, schema=None, **kw):
         query = 'SHOW TABLES'
         if schema:
             query += ' IN ' + self.identifier_preparer.quote_identifier(schema)
         return [row[0] for row in connection.execute(query)]
 
+    def get_schema_names(self, connection, **kw):
+        """ snappydata would throw an exception, prossible a bug
+        """
+        return [row[0] for row in connection.execute('SHOW SCHEMAS')]
+
+    def get_foreign_keys(self, connection, table_name, schema=None, **kw):
+        # TODO
+        return []
+
+    def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+        # TODO
+        return []
