@@ -66,5 +66,9 @@ class SnappyDataDialect(default.DefaultDialect):
         except exc.NoSuchTableError:
             return False
 
-
+    def get_table_names(self, connection, schema=None, **kw):
+        query = 'SHOW TABLES'
+        if schema:
+            query += ' IN ' + self.identifier_preparer.quote_identifier(schema)
+        return [row[0] for row in connection.execute(query)]
 
