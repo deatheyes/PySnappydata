@@ -1,6 +1,9 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import logging
+import  re
+
 from sqlalchemy.engine import default
 
 from pysnappydata import snappydata
@@ -14,30 +17,38 @@ try:
 except ImportError:
     from sqlalchemy.sql.compiler import DefaultCompiler as SQLCompiler
 
-from sqlalchemy import types
+from sqlalchemy import types as sqltypes
 from sqlalchemy import exc
 from TCLIService import ttypes
 
-import logging
-
 _logger = logging.getLogger(__name__)
 
-_type_map = {
-    'boolean': types.Boolean,
-    'smallint': types.SmallInteger,
-    'int': types.Integer,
-    'bigint': types.BigInteger,
-    'float': types.Float,
-    'double': types.Float,
-    'string': types.String,
-    'date': types.Date,
-    'timestamp': types.TIMESTAMP,
-    'binary': types.String,
-    'array': types.String,
-    'map': types.String,
-    'struct': types.String,
-    'uniontype': types.String,
-    'decimal': types.DECIMAL,
+ischema_names = {
+    'BIGINT': sqltypes.BIGINT,
+    'BLOB': sqltypes.BLOB,
+    'BOOL': sqltypes.BOOLEAN,
+    'BOOLEAN': sqltypes.BOOLEAN,
+    'CHAR': sqltypes.CHAR,
+    'DATE': sqltypes.DATE,
+    'DATE_CHAR': sqltypes.DATE,
+    'DATETIME': sqltypes.DATETIME,
+    'DATETIME_CHAR': sqltypes.DATETIME,
+    'DOUBLE': sqltypes.FLOAT,
+    'DECIMAL': sqltypes.DECIMAL,
+    'FLOAT': sqltypes.FLOAT,
+    'INT': sqltypes.INTEGER,
+    'INTEGER': sqltypes.INTEGER,
+    'NUMERIC': sqltypes.NUMERIC,
+    'REAL': sqltypes.REAL,
+    'SMALLINT': sqltypes.SMALLINT,
+    'TEXT': sqltypes.TEXT,
+    'TIME': sqltypes.TIME,
+    'TIME_CHAR': sqltypes.TIME,
+    'TIMESTAMP': sqltypes.TIMESTAMP,
+    'VARCHAR': sqltypes.VARCHAR,
+    'NVARCHAR': sqltypes.NVARCHAR,
+    'NCHAR': sqltypes.NCHAR,
+    'STRING': sqltypes.TEXT,
 }
 
 class SnappyDataDialect(default.DefaultDialect):
@@ -56,6 +67,42 @@ class SnappyDataDialect(default.DefaultDialect):
         }
         return [], kwargs
 
+    def _resolve_type_affinity(self, type_):
+        match = re.match(r'([\w ]+)(\(.*?\))?', type_)
+        if match:
+            coltype = match.group(1)
+            args = match.group(2)
+        else:
+            coltype = ''
+            args = ''
+
+        if coltype in ischema_names:
+            coltype = ischema_names[coltype]
+        elif 'INT' in coltype:
+            coltype = sqltypes.INTEGER
+        elif 'CHAR' in coltype or 'CLOB' in coltype or 'TEXT' in coltype:
+            coltype = sqltypes.TEXT
+        elif 'BLOB' in coltype or not coltype:
+            coltype = sqltypes.NullType
+        elif 'REAL' in coltype or 'FLOA' in coltype or 'DOUB' in coltype:
+            coltype = sqltypes.REAL
+        else:
+            coltype = sqltypes.TEXT
+
+        if args is not None:
+            args = re.findall(r'(\d+)', args)
+            try:
+                coltype = coltype(*[int(a) for a in args])
+            except TypeError:
+                _logger.warn(
+                    "Could not instantiate type %s with "
+                    "reflected arguments %s; using no arguments.",
+                    coltype, args)
+                coltype = coltype()
+        else:
+            coltype = coltype()
+        return coltype
+
     def _get_table_columns(self, connection, table_name, schema):
         full_table = table_name
         if schema:
@@ -69,23 +116,27 @@ class SnappyDataDialect(default.DefaultDialect):
             else:
                 raise e
 
+    def _get_columns_info(self, col_name, col_type, _comment):
+        coltype = self._resolve_type_affinity(col_type)
+        return {
+            'name': col_name,
+            'type': coltype,
+            'nullable': True,
+            'default': None,
+            'autoincrement': 'auto',
+        }
+
     def get_columns(self, connection, table_name, schema=None, **kw):
-        # TODO: parse auto increament and sequence
+        # TODO: parse auto increament and sequence, thrift client support needed.
         rows = self._get_table_columns(connection, table_name, schema)
+        # Strip whitespace
+        rows = [[col.strip() if col else None for col in row] for row in rows]
+        # Filter out empty rows and comment
+        rows = [row for row in rows if row[0] and row[0] != '# col_name']
         result = []
         for (col_name, col_type, _comment) in rows:
-            try:
-                coltype = _type_map[col_type]
-            except KeyError:
-                _logger.warning("Did not recognize type '%s' of column '%s'", col_type, col_name)
-                coltype = types.NullType
-            result.append({
-                'name': col_name,
-                'type': coltype,
-                'nullable': True,
-                'default': None,
-                'sequence': {}
-            })
+            # Different from the interface description, see 'sqlalchemy/dialects/sqlite/base.py' for more detail.
+            result.append(self._get_columns_info(col_name, col_type.upper(), _comment));
         _logger.info("get columns info: %s", result)
         return result
 
@@ -115,5 +166,9 @@ class SnappyDataDialect(default.DefaultDialect):
         return []
 
     def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+        # TODO
+        return []
+
+    def get_indexes(self, connection, table_name, schema=None, **kw):
         # TODO
         return []
