@@ -224,7 +224,6 @@ class Cursor(common.DBAPICursor):
         for row in self._operationHandle.resultSet.rows:
             item = []
             for column, descriptor in zip(row.values, self._operationHandle.resultSet.metadata):
-                sub_item = self._build_item(column, descriptor)
                 item.append(self._build_item(column, descriptor))
             data.append(item)
         return data
