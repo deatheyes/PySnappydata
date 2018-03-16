@@ -76,6 +76,7 @@ A few lines need patch to the file superset/viz.py
 ``` python
 def get_df(self, query_obj=None):
     """Returns a pandas dataframe based on the query object"""
+...
     if df is None or df.empty:
         self.status = utils.QueryStatus.FAILED
         if not self.error_message:
