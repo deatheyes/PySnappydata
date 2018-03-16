@@ -224,11 +224,16 @@ class Cursor(common.DBAPICursor):
         for row in self._operationHandle.resultSet.rows:
             item = []
             for column, descriptor in zip(row.values, self._operationHandle.resultSet.metadata):
+                sub_item = self._build_item(column, descriptor)
                 item.append(self._build_item(column, descriptor))
             data.append(item)
         return data
 
     def _build_item(self, column, descriptor):
+        if column.null_val is not None and column.null_val:
+            return None
+        if column is None or descriptor is None:
+            return None
         if descriptor.type == ttypes.SnappyType.BOOLEAN:
             return column.bool_val
         elif descriptor.type == ttypes.SnappyType.TINYINT:
