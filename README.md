@@ -62,3 +62,31 @@ engine = create_engine('snappydata://localhost:1527', connect_args = {'locator':
     user.drop(engine);
     conn.close()
 ```
+
+## Superset
+
+With SQLAlchemy supports, we can benefit from [Superset](https://github.com/apache/incubator-superset). However, time series Chart is not compatible as snappydata always return the columns' name in upper case, while Superset's key "DTTM_ALIAS" is lower case "__datetime".
+
+
+### Fix the Incompatible code
+
+
+A few lines need patch to the file superset/viz.py
+
+``` python
+def get_df(self, query_obj=None):
+    """Returns a pandas dataframe based on the query object"""
+    if df is None or df.empty:
+        self.status = utils.QueryStatus.FAILED
+        if not self.error_message:
+            self.error_message = 'No data.'
+            return pd.DataFrame() 
+        else:
+            _tmp = []
+            for _c in df.columns:
+                if _c.lower() == DTTM_ALIAS:
+                    _tmp.append(DTTM_ALIAS)
+                else:
+                    _tmp.append(_c)
+            df.columns = _tmp
+```
