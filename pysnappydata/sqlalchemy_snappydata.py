@@ -159,7 +159,8 @@ class SnappyDataDialect(default.DefaultDialect):
     def get_schema_names(self, connection, **kw):
         """ snappydata would throw an exception, prossible a bug
         """
-        return [row[0] for row in connection.execute('SHOW SCHEMAS')]
+        #return [row[0] for row in connection.execute('SHOW SCHEMAS')]
+        return []
 
     def get_foreign_keys(self, connection, table_name, schema=None, **kw):
         # TODO
