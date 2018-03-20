@@ -58,6 +58,7 @@ class Connection(object):
 
     def __init__(self, host, port=1528, username=None, password=None, locator=False):
         if locator:
+            _logger.info("connect to locator %s:%d", host, port)
             tsocket = thrift.transport.TSocket.TSocket(host, port)
             iprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
             oprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
@@ -74,6 +75,7 @@ class Connection(object):
             self._hostname = host
             self._port = port
 
+        _logger.info("connect to server %s:%d", self._hostname, self._port)
         self._clientid = self._hostname + str(thread.get_ident()) + str(time.time())
         tsocket = thrift.transport.TSocket.TSocket(self._hostname, self._port)
         iprot = thrift.protocol.TCompactProtocol.TCompactProtocol(tsocket)
