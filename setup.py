@@ -15,14 +15,14 @@
 from setuptools import setup
 
 setup(
-    name="sqlalchemy-snappydata",
+    name="Pysnappydata",
     version="0.0.0.1",
     description="Python interface to snappydata",
     license="Apache License Version 2.0",
     url="https://github.com/deatheye/PySnappydata/",
     author="Yu Yan",
     author_email="coderyy@163.com",
-    packages=['pysnappydata', 'TCLIService'],
+    packages=['pysnappydata', 'SDTCLIService'],
     classifiers=[
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",

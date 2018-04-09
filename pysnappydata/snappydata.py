@@ -10,9 +10,9 @@ import socket
 import time
 import thread
 
-from TCLIService import SnappyDataService
-from TCLIService import ttypes
-from TCLIService import LocatorService
+from SDTCLIService import SnappyDataService
+from SDTCLIService import ttypes
+from SDTCLIService import LocatorService
 from pysnappydata import common
 
 import thrift.protocol.TCompactProtocol

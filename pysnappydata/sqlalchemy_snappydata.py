@@ -9,17 +9,13 @@ from sqlalchemy.engine import default
 from pysnappydata import snappydata
 
 try:
-    from sqlalchemy import processors
-except ImportError:
-    from pysnappydata import sqlalchemy_backports as processors
-try:
     from sqlalchemy.sql.compiler import SQLCompiler
 except ImportError:
     from sqlalchemy.sql.compiler import DefaultCompiler as SQLCompiler
 
 from sqlalchemy import types as sqltypes
 from sqlalchemy import exc
-from TCLIService import ttypes
+from SDTCLIService import ttypes
 
 _logger = logging.getLogger(__name__)
 
