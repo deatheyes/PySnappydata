@@ -15,7 +15,7 @@
 from setuptools import setup
 
 setup(
-    name="Pysnappydata",
+    name="PySnappydata",
     version="0.0.0.1",
     description="Python interface to snappydata",
     license="Apache License Version 2.0",
