@@ -1,4 +1,4 @@
-PySanppyData
+PySnappyData
 ===
 
 PySnappyData is a collection of Python [DB-API](http://www.python.org/dev/peps/pep-0249/) and [SQLAlchemy](http://www.sqlalchemy.org/) interfaces for [SanppyData](https://www.snappydata.io/)
