@@ -8,7 +8,13 @@ import logging
 import sys
 import socket
 import time
-import thread
+
+if sys.version_info.major == 2:
+    #Python 2
+    import thread
+else:
+    #Python 3
+    import _thread as thread
 
 from SDTCLIService import SnappyDataService
 from SDTCLIService import ttypes
